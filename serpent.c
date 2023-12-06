@@ -26,100 +26,40 @@
 #include <stdbool.h>
 #include <time.h>
 #include <unistd.h>
-#include <termios.h>
-#include <fcntl.h>
+#include <ncurses.h>
+#include "serpent.h"
 /* */
 
-/* Program information */
-#define NAME    "serpent"
-#define VERSION 0.1
+/* Absolute value macro */
+#define ABS(x) (x) < 0 ? -(x) : (x)
 /* */
 
-/* global variables/constants */
-#define REFRESH_RATE 0.08               // refresh rate (in seconds)
-#define START_SNAKE_LEN 5               // initial snake length
-#define SNAKE_BODY '*'                  // snake's body
-#define SNAKE_HEAD_U 'v'                // head when going up
-#define SNAKE_HEAD_D '^'                // head when going down
-#define SNAKE_HEAD_L '>'                // head when going left
-#define SNAKE_HEAD_R '<'                // head when going right
-#define FOOD '@'                        // normal food
-#define FOOD_SCORE 1                    // score increase when snake eats food
-#define BORDER_CORNER '+'               // character at corners of border
-#define BORDER_VERT '|'                 // character for vertical border
-#define BORDER_HORI '-'                 // character for horizontal border
-#define SCREEN_WIDTH 40                 // the virtual screen width
-#define SCREEN_HEIGHT 30                // the virtual screen height
+// Variable to track if snake is alive
+bool is_alive = true;
+
+/* Initialize structs */
+snake_t *snake;
+apple_t *apple;
 /* */
 
-typedef enum { UP, DOWN, LEFT, RIGHT } Direction;
-
-typedef enum { RUNNING, PAUSED, STOPPED } GameState;
-
-typedef struct {
-    int X;
-    int Y;
-} Point;
-
-typedef struct {
-    char borderCor;
-    char borderVer;
-    char borderHor;
-    unsigned int width;
-    unsigned int height;
-} Board;
-
-typedef struct {
-    GameState state;
-    unsigned int points;
-    char* player;
-} Game;
-
-typedef struct {
-    Point position;
-    char sprite;
-    SnakeNode* next;
-} SnakeNode;
-
-typedef struct {
-    Direction direction;
-    unsigned int length;
-    SnakeNode* head;
-    SnakeNode* tail;
-} Snake;
-
-typedef struct {
-    Point position;
-    unsigned int points;
-    char food;
-} Food;
-
-typedef struct {
-    char borderCor;
-    char borderVer;
-    char borderHor;
-    unsigned int width;
-    unsigned int height;
-} Board;
-
-// Function prototypes
-void initializeGame(Game *game, Board *board, Snake *snake, Food *food);
-void clearScreen();
-void waitForKeypress();
-void displayLogo();
-void displayMainMenu();
-void displayControls();
-void displayInfo();
+/* Function prototypes */
+void appendSnakeNode(snake_t *new_snake);
+snake_t *startSnake(board_t *board);
+void freeSnake();
+bool snakeOccupies(int x, int y, bool excludeHead);
+int snakeSize();
+apple_t *startApple(board_t *board);
+void moveApple(board_t *board);
+bool appleOccupies(int x, int y);
+void handleInput(int key);
+void moveSnake(board_t *board);
+void draw(board_t *board);
 void argControls();
 void argHelp();
 void argVersion();
+/* */
 
 int main (int argc, char **argv) {
-    Game game;
-    Board board;
-    Food food;
-    Snake snake;
-
     int option;
 
     static const char* short_options = "chv";
@@ -146,114 +86,290 @@ int main (int argc, char **argv) {
                 return 1;
         }
     }
+
+    // Initialize board
+    board_t gameBoard = {
+        .border = BOARD_CHAR,
+        .boardHeight = SCREEN_HEIGHT,
+        .boardWidth = SCREEN_WIDTH
+    };
+    
+    /* Initialize the snake doubly-linked list */
+    snake = startSnake(&gameBoard);
+    
+    /* Initialize the apple */
+    apple = startApple(&gameBoard);
+    
+    /* Initialize window settings with ncurses */
+    initscr();
+    cbreak();
+    noecho();
+    keypad(stdscr, TRUE);
+    curs_set(0);
+    nodelay(stdscr, TRUE);
+    
+    while (is_alive) {
+        /* Take arrow key inputs */
+        int c = getch();
+        if (c != ERR) {
+            handleInput(c);
+        }
+    
+        /* Update the snake position */
+        moveSnake(&gameBoard);
+    
+        /* Redraw the frame */
+        draw(&gameBoard);
+    
+        /* Refresh the window */
+        refresh();
+        usleep(SPEED * 800L);
+    }
+    
+    int score = snakeSize();
+    
+    /* Free memory allocated by snake */
+    freeSnake();
+    
+    /* Free memory allocated by apple */
+    free(apple);
+    
+    /* End ncurses window */
+    endwin();
+    
+    /* Print final score out to terminal */
+    printf("Game over. Score: %d", score - START_SNAKE_SIZE);
     return 0;
 }
 
-void initializeGame(Game *game, Board *board, Snake *snake, Food *food) {
-    game->state = RUNNING;
-    game->points = 0;
+void appendSnakeNode(snake_t * new_snake) {
+    snake_node *node_ptr = malloc(sizeof(snake_node));
+    
+    node_ptr->prev = new_snake->tail;
+    node_ptr->next = NULL;
+    
+    new_snake->tail->next = node_ptr;
+    
+    new_snake->tail = node_ptr;
+}
 
-    // Initialize snake direction and head
-    snake->direction = RIGHT;
-    snake->head = (SnakeNode*)malloc(sizeof(SnakeNode));
-    snake->head->sprite = SNAKE_HEAD_R;
-    snake->head->position.X = SCREEN_HEIGHT / 2;
-    snake->head->position.Y = SCREEN_HEIGHT / 2;
-    snake->head->next = NULL;
+snake_t *startSnake(board_t *board) {
+    snake_t *new_snake = malloc(sizeof(snake_t));
+    
+    snake_node *head = malloc(sizeof(snake_node));
+    
+    new_snake->head = head;
+    new_snake->tail = head;
+    
+    head->prev = NULL;
+    head->next = NULL;
+    head->pX = board->boardWidth / 2 + 1;
+    head->pY = board->boardHeight / 2 + 1;
+    
+    snake_node *node = head;
+    for (int i = 1; i < START_SNAKE_SIZE; i++) {
+        appendSnakeNode(new_snake);
+        node = node->next;
+        node->pX = node->prev->pX;
+        node->pY = node->prev->pY + 1;
+    }
+    
+    new_snake->dX = 0;
+    new_snake->dY = -1;
+    
+    return new_snake;
+}
 
-    // Initialize snake body
-    SnakeNode *currentSegment = snake->head;
-    for (int i = 1; i < START_SNAKE_LEN; ++i) {
-        SnakeNode *newSegment = (SnakeNode*)malloc(sizeof(SnakeNode));
-        newSegment->sprite = SNAKE_BODY;
-        newSegment->position.X = snake->head->position.X - i;
-        newSegment->position.Y = snake->head->position.Y;
-        newSegment->next = NULL;
+void freeSnake() {
+    snake_node *snake_current = snake->head;
+    snake_node *snake_next = snake->head->next;
 
-        currentSegment->next = newSegment;  // Link the current segment to the new one
-        currentSegment = newSegment;       // Move to the new segment
+    while (snake_next != NULL) {
+        free(snake_current);
+        snake_current = snake_next;
+        snake_next = snake_next->next;
     }
 
-    // Set the tail of the snake
-    snake->tail = currentSegment;
+    free(snake_current);
+    free(snake);
+    snake = NULL;
 }
 
-// Function for clearing the console
-void clearScreen() {
-    printf("\e[1;1H\e[2J");
+bool snakeOccupies(int x, int y, bool excludeHead) {
+    snake_node *snake_ptr;
+    
+    if (excludeHead) {
+        snake_ptr = snake->head;
+    } else {
+        snake_ptr = snake->head->next;
+    }
+    
+    while (snake_ptr != NULL) {
+    
+        if (snake_ptr->pX == x && snake_ptr->pY == y) {
+            return true;
+        }
+    
+        snake_ptr = snake_ptr->next;
+    }
+    
+    return false;
 }
 
-// Function for waiting for keypress
-void waitForKeypress() {
-    struct termios oldt, newt;
-    tcgetattr(STDIN_FILENO, &oldt);
-    newt = oldt;
-    newt.c_lflag &= ~(ICANON | ECHO);
-    tcsetattr(STDIN_FILENO, TCSANOW, &newt);
-    while (getchar() != '\n'); // Consume any remaining characters in the input buffer
-    getchar(); // Wait for a key press
-    tcsetattr(STDIN_FILENO, TCSANOW, &oldt);
+int snakeSize() {
+    snake_node *snake_ptr = snake->head;
+    int counter = 0;
+    
+    while (snake_ptr != NULL) {
+        counter++;
+        snake_ptr = snake_ptr->next;
+    }
+    
+    return counter;
 }
 
-// Function for displaying the logo of the game
-void displayLogo() {
-    printf("                          ____      \n");
-    printf(" ________________________/ O  \\___/\n");
-    printf("<_____________________________/   \\\n");
-    printf(" __                            _   \n");
-    printf("/ _\\ ___ _ __ _ __   ___ _ __ | |_ \n");
-    printf("\\ \\ / _ \\ '__| '_ \\ / _ \\ '_ \\| __|\n");
-    printf("_\\ \\  __/ |  | |_) |  __/ | | | |_ \n");
-    printf("\\__/\\___|_|  | .__/ \\___|_| |_|\\__|\n");
-    printf("             |_|                   \n");
-    printf("\n");
+apple_t *startApple(board_t *board) {
+    apple_t *new_apple = malloc(sizeof(apple_t));
+    srandom(time(NULL));
+    
+    do {
+        new_apple->pX = random() % board->boardWidth + 1;
+    } while (new_apple->pX == board->boardHeight / 2 + 1);
+    
+    new_apple->pY = random() % board->boardHeight + 1;
+    
+    return new_apple;
 }
 
-// Function for displaying the main menu
-void displayMainMenu() {
-    displayLogo();
-    printf("Welcome to serpent!\n");
-    printf("\n");
-    printf("  Select an option:\n");
-    printf("    1. Play\n");
-    printf("    2. Show leader board\n");
-    printf("    3. Show controls\n");
-    printf("    4. Show Info\n");
-    printf("    5. Exit\n");
-    printf("\n");
-    printf("  Choose [1-5]: ");
+
+void moveApple(board_t *board) {
+    int new_x;
+    int new_y;
+    
+    do {
+        new_x = random() % board->boardWidth + 1;
+        new_y = random() % board->boardHeight + 1;
+    
+    } while (snakeOccupies(new_x, new_y, true));
+    
+    apple->pX = new_x;
+    apple->pY = new_y;
 }
 
-// Function for tisplaying the game controls
-void displayControls() {
-    displayLogo();
-    printf("Controls.\n");
-    printf("\n");
-    printf("  Movement:\n");
-    printf("    ↑: move up\n");
-    printf("    ←: move to the left\n");
-    printf("    →: move to the right\n");
-    printf("    ↓: move down\n");
-    printf("  Game:\n");
-    printf("    q: quit\n");
-    printf("    p: pause\n");
-    printf("    r: restart\n");
-    printf("\n");
-    printf("Press any key to go back... ");
+bool appleOccupies(int x, int y) {
+    if (apple->pX == x && apple->pY == y) {
+        return true;
+    }
+    return false;
 }
 
-// Function for displaying the game info
-void displayInfo() {
-    displayLogo();
-    printf("About this game.\n");
-    printf("\n");
-    printf("  Author: Darius Drake\n");
-    printf("  License: GPL v3\n");
-    printf("  Contribute:\n");
-    printf("    The source code is available on GitHub -> https://github.com/d4r1us-drk/serpent\n");
-    printf("    Feel free to contribute with ideas, issues or pull requests.\n");
-    printf("\n");
-    printf("Press any key to go back... ");
+void handleInput(int key) {
+    switch(key) {
+        case KEY_UP:
+            if (snake->dY == 0) {
+                snake->dY = -1;
+                snake->dX = 0;
+                }
+            break;
+        case KEY_DOWN:
+            if (snake->dY == 0) {
+                snake->dY = 1;
+                snake->dX = 0;
+            }
+            break;
+        case KEY_RIGHT:
+            if (snake->dX == 0) {
+                snake->dX = 1;
+                snake->dY = 0;
+            }
+            break;
+        case KEY_LEFT:
+            if (snake->dX == 0) {
+                snake->dX = -1;
+                snake->dY = 0;
+            }
+            break;
+        default:
+            refresh();
+            break;
+    }
+}
+
+void moveSnake (board_t *board) {
+    if ((ABS(snake->dX) > 0) || (ABS(snake->dY) > 0)) {
+        if (!appleOccupies(snake->head->pX + snake->dX, snake->head->pY + snake->dY)) {
+            snake->tail->pX = snake->head->pX + snake->dX;
+            snake->tail->pY = snake->head->pY + snake->dY;
+
+            snake->tail->next = snake->head;
+            snake->head->prev = snake->tail;
+
+            snake->tail = snake->tail->prev;
+            snake->tail->next = NULL;
+            snake->head->prev->prev = NULL;
+
+            snake->head = snake->head->prev;
+
+        } else {
+            moveApple(board);
+            snake_node *new_head = malloc(sizeof(snake_node));
+            new_head->pX = snake->head->pX + snake->dX;
+            new_head->pY = snake->head->pY + snake->dY;
+            new_head->prev = NULL;
+            new_head->next = snake->head;
+            snake->head->prev = new_head;
+            snake->head = new_head;
+            appendSnakeNode(snake);
+        }
+    
+        if (snakeOccupies(snake->head->pX, snake->head->pY, false)) {
+            is_alive = false;
+        }
+        
+        if ((snake->head->pX == 0) || (snake->head->pX == board->boardWidth + 1)) {
+            is_alive = false;
+        }
+        
+        if ((snake->head->pY == 0) || (snake->head->pY == board->boardHeight + 1)) {
+            is_alive = false;
+        }
+    }
+}
+
+void draw(board_t *board) {
+    mvprintw(0, 0, "%c", board->border);
+
+    for (int i = 0; i < board->boardHeight; i++) {
+        mvaddch(i + 1, 0, board->border);
+        mvaddch(i + 1, board->boardWidth + 1, board->border);
+
+        for (int j = 0; j < board->boardWidth; j++) {
+            mvaddch(i + 1, j + 1, ' ');
+        }
+    }
+
+    snake_node *snake_ptr = snake->head;
+
+    if (snake->dX == -1) {
+        mvaddch(snake_ptr->pY, snake_ptr->pX, SNAKE_HEAD_L);
+    } else if (snake->dX == 1) {
+        mvaddch(snake_ptr->pY, snake_ptr->pX, SNAKE_HEAD_R);
+    } else if (snake->dY == -1) {
+        mvaddch(snake_ptr->pY, snake_ptr->pX, SNAKE_HEAD_U);
+    } else if (snake->dY == 1) {
+        mvaddch(snake_ptr->pY, snake_ptr->pX, SNAKE_HEAD_D);
+    }
+    snake_ptr = snake_ptr->next;
+
+    while(snake_ptr != NULL) {
+        mvaddch(snake_ptr->pY, snake_ptr->pX, SNAKE_BODY);
+        snake_ptr = snake_ptr->next;
+    }
+
+    mvaddch(apple->pY, apple->pX, FOOD);
+
+    mvprintw(board->boardHeight + 1, 0, "%c", board->border);
+    mvprintw(board->boardHeight + 3, 0, "Score: %d", snakeSize() - START_SNAKE_SIZE);
 }
 
 // Function for displaying the game controls in the command line
