@@ -296,6 +296,8 @@ void moveSnake(board_t *board) {
     if ((ABS(snake->dX) > 0) || (ABS(snake->dY) > 0)) {
         int new_head_x = snake->head->pX + snake->dX;
         int new_head_y = snake->head->pY + snake->dY;
+        int new_tail_x = snake->tail->pX + snake->dX;
+        int new_tail_y = snake->tail->pY + snake->dY;
 
         if (!appleOccupies(new_head_x, new_head_y)) {
             // Move the tail to the new position
@@ -327,8 +329,10 @@ void moveSnake(board_t *board) {
             snake->head->prev = new_head;
             snake->head = new_head;
 
-            // Append a new node to the snake
+            // Append a new node to the snake's tail
             appendSnakeNode(snake);
+            snake->tail->pX = new_tail_x;
+            snake->tail->pY = new_tail_y;
         }
 
         // Check for collisions and update the snake
