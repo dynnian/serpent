@@ -30,10 +30,6 @@
 #include "serpent.h"
 /* */
 
-/* Absolute value macro */
-#define ABS(x) (x) < 0 ? -(x) : (x)
-/* */
-
 // Variable to track if snake is alive
 bool is_alive = true;
 
@@ -88,17 +84,17 @@ int main (int argc, char **argv) {
     }
 
     // Initialize board
-    board_t gameBoard = {
+    board_t board = {
         .border = BOARD_CHAR,
         .boardHeight = SCREEN_HEIGHT,
         .boardWidth = SCREEN_WIDTH
     };
     
     /* Initialize the snake doubly-linked list */
-    snake = startSnake(&gameBoard);
+    snake = startSnake(&board);
     
     /* Initialize the apple */
-    apple = startApple(&gameBoard);
+    apple = startApple(&board);
     
     /* Initialize window settings with ncurses */
     initscr();
@@ -107,6 +103,13 @@ int main (int argc, char **argv) {
     keypad(stdscr, TRUE);
     curs_set(0);
     nodelay(stdscr, TRUE);
+
+    /* Check if the board size is greater than the screen size */
+    if (board.boardWidth > COLS || board.boardHeight > LINES) {
+        endwin();
+        printf("ERROR: Board size is larger than the terminal window.\n");
+        return 1;
+    }
     
     while (is_alive) {
         /* Take arrow key inputs */
@@ -116,10 +119,10 @@ int main (int argc, char **argv) {
         }
     
         /* Update the snake position */
-        moveSnake(&gameBoard);
+        moveSnake(&board);
     
         /* Redraw the frame */
-        draw(&gameBoard);
+        draw(&board);
     
         /* Refresh the window */
         refresh();
@@ -163,8 +166,8 @@ snake_t *startSnake(board_t *board) {
     
     head->prev = NULL;
     head->next = NULL;
-    head->pX = board->boardWidth / 2 + 1;
-    head->pY = board->boardHeight / 2 + 1;
+    head->pX = board->boardWidth / 2;
+    head->pY = board->boardHeight / 2;
     
     snake_node *node = head;
     for (int i = 1; i < START_SNAKE_SIZE; i++) {
@@ -205,11 +208,9 @@ bool snakeOccupies(int x, int y, bool excludeHead) {
     }
     
     while (snake_ptr != NULL) {
-    
         if (snake_ptr->pX == x && snake_ptr->pY == y) {
             return true;
         }
-    
         snake_ptr = snake_ptr->next;
     }
     
@@ -230,28 +231,24 @@ int snakeSize() {
 
 apple_t *startApple(board_t *board) {
     apple_t *new_apple = malloc(sizeof(apple_t));
-    srandom(time(NULL));
-    
+    srand(time(NULL));
+
     do {
-        new_apple->pX = random() % board->boardWidth + 1;
-    } while (new_apple->pX == board->boardHeight / 2 + 1);
-    
-    new_apple->pY = random() % board->boardHeight + 1;
-    
+        new_apple->pX = (random() % (board->boardWidth - 2)) + 1;
+        new_apple->pY = (random() % (board->boardHeight - 2)) + 1;
+    } while (snakeOccupies(new_apple->pX, new_apple->pY, false));
+
     return new_apple;
 }
 
-
 void moveApple(board_t *board) {
-    int new_x;
-    int new_y;
-    
+    int new_x, new_y;
+
     do {
-        new_x = random() % board->boardWidth + 1;
-        new_y = random() % board->boardHeight + 1;
-    
+        new_x = (random() % (board->boardWidth - 2)) + 1;
+        new_y = (random() % (board->boardHeight - 2)) + 1;
     } while (snakeOccupies(new_x, new_y, true));
-    
+
     apple->pX = new_x;
     apple->pY = new_y;
 }
@@ -295,12 +292,17 @@ void handleInput(int key) {
     }
 }
 
-void moveSnake (board_t *board) {
+void moveSnake(board_t *board) {
     if ((ABS(snake->dX) > 0) || (ABS(snake->dY) > 0)) {
-        if (!appleOccupies(snake->head->pX + snake->dX, snake->head->pY + snake->dY)) {
-            snake->tail->pX = snake->head->pX + snake->dX;
-            snake->tail->pY = snake->head->pY + snake->dY;
+        int new_head_x = snake->head->pX + snake->dX;
+        int new_head_y = snake->head->pY + snake->dY;
 
+        if (!appleOccupies(new_head_x, new_head_y)) {
+            // Move the tail to the new position
+            snake->tail->pX = new_head_x;
+            snake->tail->pY = new_head_y;
+
+            // Update the links in the snake
             snake->tail->next = snake->head;
             snake->head->prev = snake->tail;
 
@@ -311,40 +313,44 @@ void moveSnake (board_t *board) {
             snake->head = snake->head->prev;
 
         } else {
+            // The snake eats the apple
             moveApple(board);
+
+            // Create a new head node
             snake_node *new_head = malloc(sizeof(snake_node));
-            new_head->pX = snake->head->pX + snake->dX;
-            new_head->pY = snake->head->pY + snake->dY;
+            new_head->pX = new_head_x;
+            new_head->pY = new_head_y;
             new_head->prev = NULL;
             new_head->next = snake->head;
+
+            // Update the links in the snake
             snake->head->prev = new_head;
             snake->head = new_head;
+
+            // Append a new node to the snake
             appendSnakeNode(snake);
         }
-    
-        if (snakeOccupies(snake->head->pX, snake->head->pY, false)) {
-            is_alive = false;
-        }
-        
-        if ((snake->head->pX == 0) || (snake->head->pX == board->boardWidth + 1)) {
-            is_alive = false;
-        }
-        
-        if ((snake->head->pY == 0) || (snake->head->pY == board->boardHeight + 1)) {
+
+        // Check for collisions and update the snake
+        if (snakeOccupies(new_head_x, new_head_y, false) ||
+            (new_head_x == 0) || (new_head_x == board->boardWidth - 1) ||
+            (new_head_y == 0) || (new_head_y == board->boardHeight - 1)) {
             is_alive = false;
         }
     }
 }
 
 void draw(board_t *board) {
-    mvprintw(0, 0, "%c", board->border);
+    erase();
+    int i, j;
 
-    for (int i = 0; i < board->boardHeight; i++) {
-        mvaddch(i + 1, 0, board->border);
-        mvaddch(i + 1, board->boardWidth + 1, board->border);
-
-        for (int j = 0; j < board->boardWidth; j++) {
-            mvaddch(i + 1, j + 1, ' ');
+    for (i = 0; i < board->boardHeight; i++) {
+        for (j = 0; j < board->boardWidth; j++) {
+            if (i == 0 || i == board->boardHeight - 1) {
+                mvprintw(i, j, "%c", board->border);
+            } else if (j == 0 || j == board->boardWidth - 1) {
+                mvprintw(i, j, "%c", board->border);
+            }
         }
     }
 
@@ -368,7 +374,6 @@ void draw(board_t *board) {
 
     mvaddch(apple->pY, apple->pX, FOOD);
 
-    mvprintw(board->boardHeight + 1, 0, "%c", board->border);
     mvprintw(board->boardHeight + 3, 0, "Score: %d", snakeSize() - START_SNAKE_SIZE);
 }
 

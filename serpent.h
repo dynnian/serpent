@@ -6,17 +6,21 @@
 #define VERSION 0.1
 /* */
 
+/* Absolute value macro */
+#define ABS(x) (x) < 0 ? -(x) : (x)
+/* */
+
 /* global variables/constants */
-#define START_SNAKE_SIZE 5          /* snake's initial size */
+#define START_SNAKE_SIZE 2          /* snake's initial size */
 #define SNAKE_BODY       '*'        /* snake's body */
 #define SNAKE_HEAD_U     'v'        /* head when going up */
 #define SNAKE_HEAD_D     '^'        /* head when going down */
 #define SNAKE_HEAD_L     '>'        /* head when going left */
 #define SNAKE_HEAD_R     '<'        /* head when going right  */
 #define FOOD             '@'        /* normal food */
-#define BOARD_CHAR       '+'        /* character at corners of border */
-#define SCREEN_WIDTH     30         /* the virtual screen width */
-#define SCREEN_HEIGHT    20	        /* the virtual screen height */
+#define BOARD_CHAR       '#'        /* character at corners of border */
+#define SCREEN_WIDTH     40         /* the virtual screen width */
+#define SCREEN_HEIGHT    30	        /* the virtual screen height */
 #define SPEED 100                   /* speed of the game */
 /* */
 
