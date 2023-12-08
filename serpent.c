@@ -78,25 +78,25 @@ int main (int argc, char **argv) {
     /* Command line parsing */
     int option;
 
-    static const char* short_options = "chv";
-    static struct option long_options[] = {
+    static const char* shortOptions = "chv";
+    static struct option longOptions[] = {
         {"show-controls", no_argument, NULL, 'c'},
         {"help", no_argument, NULL, 'h'},
         {"version", no_argument, NULL, 'v'},
         {NULL, 0, NULL, 0}
     };
 
-    while ((option = getopt_long (argc, argv, short_options, long_options, NULL)) != -1) {
+    while ((option = getopt_long (argc, argv, shortOptions, longOptions, NULL)) != -1) {
         switch (option) {
             case 'c':
                 argControls();
-                break;
+                return 0;
             case 'h':
                 argHelp();
-                break;
+                return 0;
             case 'v':
                 argVersion();
-                break;
+                return 0;
             case '?':
                 fprintf(stderr, "Use '-h, --help' for help.\n");
                 return 1;
