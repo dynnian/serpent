@@ -507,7 +507,9 @@ void run() {
         switch (choice) {
             case '1':
                 if (!isAlive) {
+                    cleanup();
                     snake = startSnake();
+                    apple = startApple();
                     isAlive = true;
                     speed = minSpeed;
                 }
