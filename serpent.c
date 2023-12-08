@@ -31,8 +31,8 @@
 /* */
 
 /* Global variables */
-bool isAlive = true;                  /* variable to track if snake is alive */
-bool isRunning = true;                /* variable to track if the game is running */
+bool isAlive = true;                  /* variable to check if snake is alive */
+bool isPaused = false;                /* variable to check if the game is paused */
 const unsigned int minSpeed = 100;    /* default speed of the game (lower is faster) */
 const unsigned int maxSpeed = 70;     /* max speed of the game (lower is faster) */
 unsigned int speed = minSpeed;        /* variable speed of the game (lower is faster) */
@@ -353,28 +353,27 @@ void handleInput(int key) {
     /* Handle different key inputs to change the snake's direction */
     switch (key) {
         case KEY_UP:
+            if (isPaused) isPaused = !isPaused;
             /* If the snake is not currently moving down, change its direction to up */
-            if (snake->direction != DOWN) {
-                snake->direction = UP;
-            }
+            if (snake->direction != DOWN) snake->direction = UP;
             break;
         case KEY_DOWN:
+            if (isPaused) isPaused = !isPaused;
             /* If the snake is not currently moving up, change its direction to down */
-            if (snake->direction != UP) {
-                snake->direction = DOWN;
-            }
+            if (snake->direction != UP) snake->direction = DOWN;
             break;
         case KEY_RIGHT:
+            if (isPaused) isPaused = !isPaused;
             /* If the snake is not currently moving left, change its direction to right */
-            if (snake->direction != LEFT) {
-                snake->direction = RIGHT;
-            }
+            if (snake->direction != LEFT) snake->direction = RIGHT;
             break;
         case KEY_LEFT:
+            if (isPaused) isPaused = !isPaused;
             /* If the snake is not currently moving right, change its direction to left */
-            if (snake->direction != RIGHT) {
-                snake->direction = LEFT;
-            }
+            if (snake->direction != RIGHT) snake->direction = LEFT;
+            break;
+        case 'p':
+            isPaused = !isPaused;
             break;
         default:
             /* Do nothing for other keys */
@@ -435,8 +434,10 @@ void gameLoop() {
         handleInput(c);
     }
 
-    /* Update the snake position */
-    updateSnake();
+    // Check if the game is not paused before updating the snake position
+    if (!isPaused) {
+        updateSnake();
+    }
 
     /* Redraw the frame */
     drawGame();
@@ -474,6 +475,7 @@ void initializeGame() {
 /* Starting point of the game */
 void run() {
     int choice;
+    bool isRunning = true;
 
     WINDOW * menuScreen = newwin(SCREEN_HEIGHT, SCREEN_WIDTH, startY, startX);
     refresh();
@@ -549,10 +551,11 @@ void mainMenu(WINDOW *menuScreen, int menuType) {
         case 2:
             /* Display controls */
             mvwprintw(menuScreen, menuY + 9,  menuX, "\tControls");
-            mvwprintw(menuScreen, menuY + 10, menuX, "\t  Arrow Up: Move Up");
-            mvwprintw(menuScreen, menuY + 11, menuX, "\t  Arrow Down: Move Down");
-            mvwprintw(menuScreen, menuY + 12, menuX, "\t  Arrow Left: Move Left");
+            mvwprintw(menuScreen, menuY + 10, menuX, "\t  Arrow Up:    Move Up");
+            mvwprintw(menuScreen, menuY + 11, menuX, "\t  Arrow Down:  Move Down");
+            mvwprintw(menuScreen, menuY + 12, menuX, "\t  Arrow Left:  Move Left");
             mvwprintw(menuScreen, menuY + 13, menuX, "\t  Arrow Right: Move Right");
+            mvwprintw(menuScreen, menuY + 13, menuX, "\t  p:           Pause the game");
             mvwprintw(menuScreen, menuY + 14, menuX, "\tPress a key to go back...");
             wrefresh(menuScreen);
             wgetch(menuScreen);
@@ -582,10 +585,11 @@ void cleanup() {
 void argControls() {
     printf("%s version: %.1lf\n", NAME, VERSION);
     printf("Controls:\n");
-    printf("\tArrow Up: move up\n");
-    printf("\tArrow Down: move down\n");
-    printf("\tArrow Left: move to the left\n");
-    printf("\tArrow Right: move to the right\n");
+    printf("\tArrow Up:    Move Up\n");
+    printf("\tArrow Down:  Move Down\n");
+    printf("\tArrow Left:  Move Left\n ");
+    printf("\tArrow Right: Move Right\n");
+    printf("\tp:           Pause the game\n");
 }
 
 /* Function to display the help message in the command line */
