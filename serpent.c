@@ -523,8 +523,8 @@ void run() {
 
 /* Function to display the main menu */
 void mainMenu(WINDOW *menuScreen, int menuType) {
-    int menuY = (SCREEN_HEIGHT - startY) / 5;
-    int menuX = (SCREEN_WIDTH - startX) / 2;
+    int menuY = (SCREEN_HEIGHT - 5) / 5;
+    int menuX = (SCREEN_WIDTH - 30) / 2;
 
     wclear(menuScreen);
     box(menuScreen, 0, 0);
