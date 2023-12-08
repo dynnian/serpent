@@ -387,6 +387,7 @@ void drawGame() {
     /* Clear the terminal screen */
     erase();
 
+    /* Create a ncurses window for the game board */
     WINDOW *gameBoard = newwin(SCREEN_HEIGHT, SCREEN_WIDTH, startY, startX);
     box(gameBoard, 0, 0);
     refresh();
@@ -458,6 +459,7 @@ int initializeGame() {
     keypad(stdscr, TRUE);
     curs_set(0);
 
+    /* Detect if the terminal window is smaller than the board */
     if (SCREEN_HEIGHT > LINES || SCREEN_WIDTH > COLS) {
         endwin();
         fprintf(stderr, "ERROR: The terminal window needs to be larger.\n");
@@ -465,6 +467,8 @@ int initializeGame() {
     }
 
     nodelay(stdscr, TRUE);
+
+    /* Set starting X and Y coordinates to center ncurses windows */
     getmaxyx(stdscr, terminalRows, terminalCols);
     startY = (terminalRows - SCREEN_HEIGHT) / 2;
     startX = (terminalCols - SCREEN_WIDTH) / 2;
@@ -484,6 +488,7 @@ void run() {
     int choice;
     bool isRunning = true;
 
+    /* Create an ncurses window for the main menu */
     WINDOW * menuScreen = newwin(SCREEN_HEIGHT, SCREEN_WIDTH, startY, startX);
     refresh();
     wrefresh(menuScreen);
@@ -494,7 +499,7 @@ void run() {
 
         /* Input validation loop */
         do {
-            /* Use getch to get a single character */
+            /* Use wgetch to get a single character */
             choice = wgetch(menuScreen);
 
         } while (choice < '1' || choice > '3');
@@ -569,6 +574,7 @@ void mainMenu(WINDOW *menuScreen, int menuType) {
             break;
         case 3:
             /* Display the final score on the main menu */
+            mvwprintw(menuScreen, menuY + 12, menuX, "\tGAME OVER");
             mvwprintw(menuScreen, menuY + 13, menuX, "\tFinal Score: %d", score);
             mvwprintw(menuScreen, menuY + 14, menuX, "\tPress a key to go back...");
             wgetch(menuScreen);
