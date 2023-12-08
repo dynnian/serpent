@@ -60,7 +60,7 @@ bool snakeCollision(int x, int y, bool excludeHead);
 bool appleCollision(int x, int y);
 void handleInput(int key);
 void drawGame();
-void initializeGame();
+int initializeGame();
 void gameLoop();
 void run();
 void mainMenu(WINDOW *menuScreen, int menuType);
@@ -99,7 +99,7 @@ int main (int argc, char **argv) {
         }
     }
 
-    initializeGame();
+    if ((initializeGame()) == 1) return 1;
 
     cleanup();
 
@@ -450,16 +450,22 @@ void gameLoop() {
 }
 
 /* Function responsible of initializing the game */
-void initializeGame() {
+int initializeGame() {
     /* Initialize window settings with ncurses */
     initscr();
     cbreak();
     noecho();
     keypad(stdscr, TRUE);
     curs_set(0);
+
+    if (SCREEN_HEIGHT > LINES || SCREEN_WIDTH > COLS) {
+        endwin();
+        fprintf(stderr, "ERROR: The terminal window needs to be larger.\n");
+        return 1;
+    }
+
     nodelay(stdscr, TRUE);
     getmaxyx(stdscr, terminalRows, terminalCols);
-
     startY = (terminalRows - SCREEN_HEIGHT) / 2;
     startX = (terminalCols - SCREEN_WIDTH) / 2;
 
@@ -470,6 +476,7 @@ void initializeGame() {
     apple = startApple();
 
     run();
+    return 0;
 }
 
 /* Starting point of the game */
