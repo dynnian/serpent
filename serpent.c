@@ -30,16 +30,17 @@
 #include "serpent.h"
 /* */
 
-/* global variables */
-bool isAlive = true;    /* variable to track if snake is alive */
-bool isRunning = true;
-unsigned int SPEED = 100;         /* speed of the game */
-unsigned int MAX_SPEED = 60;      /* max speed of the game */
-unsigned int terminalRows;
-unsigned int terminalCols;
-int startY;
-int startX;
-unsigned int score;
+/* Global variables */
+bool isAlive = true;                  /* variable to track if snake is alive */
+bool isRunning = true;                /* variable to track if the game is running */
+const unsigned int minSpeed = 100;    /* default speed of the game (lower is faster) */
+const unsigned int maxSpeed = 70;     /* max speed of the game (lower is faster) */
+unsigned int speed = minSpeed;        /* variable speed of the game (lower is faster) */
+unsigned int terminalRows;            /* variable for storing the terminal rows */
+unsigned int terminalCols;            /* variable for storing the terminal columns */
+int startY;                           /* initial Y position of the window */
+int startX;                           /* initial X position of the window */
+unsigned int score;                   /* game score */
 /* */
 
 /* Initialize structs */
@@ -48,27 +49,22 @@ Apple *apple;
 /* */
 
 /* Function prototypes */
-// structure functions
 Snake *startSnake();
 Apple *startApple();
 void appendSnakeNode(Snake *new_snake);
 void freeSnake();
 int snakeSize();
-// game logic
 void updateSnake();
 void updateApple();
 bool snakeCollision(int x, int y, bool excludeHead);
 bool appleCollision(int x, int y);
-// game i-o
 void handleInput(int key);
 void drawGame();
-// game functions
 void initializeGame();
 void gameLoop();
 void run();
 void mainMenu(WINDOW *menuScreen, int menuType);
 void cleanup();
-// command line functions
 void argControls();
 void argHelp();
 void argVersion();
@@ -263,8 +259,8 @@ void updateSnake() {
             updateApple();
 
             /* Increase the speed if it hasn't reached the maximum */
-            if (SPEED >= MAX_SPEED) {
-                SPEED -= 1;
+            if (speed >= maxSpeed) {
+                speed -= 1;
             }
 
             /* Create a new head node and update its position */
@@ -392,10 +388,6 @@ void drawGame() {
     /* Clear the terminal screen */
     erase();
 
-    // Calculate the center coordinates
-    int startY = (terminalRows - SCREEN_HEIGHT) / 2;
-    int startX = (terminalCols - SCREEN_WIDTH) / 2;
-
     WINDOW *gameBoard = newwin(SCREEN_HEIGHT, SCREEN_WIDTH, startY, startX);
     box(gameBoard, 0, 0);
     refresh();
@@ -453,7 +445,7 @@ void gameLoop() {
     refresh();
     
     /* Introduce a delay for the game loop */
-    usleep(SPEED * 800L);
+    usleep(speed * 800L);
 }
 
 /* Function responsible of initializing the game */
@@ -503,6 +495,7 @@ void run() {
                 if (!isAlive) {
                     snake = startSnake();
                     isAlive = true;
+                    speed = minSpeed;
                 }
                 /* Start the game loop */
                 while (isAlive) {
