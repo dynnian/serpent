@@ -48,28 +48,6 @@ Snake *snake;
 Apple *apple;
 /* */
 
-/* Function prototypes */
-Snake *startSnake();
-Apple *startApple();
-void appendSnakeNode(Snake *new_snake);
-void freeSnake();
-int snakeSize();
-void updateSnake();
-void updateApple();
-bool snakeCollision(int x, int y, bool excludeHead);
-bool appleCollision(int x, int y);
-void handleInput(int key);
-void drawGame();
-int initializeGame();
-void gameLoop();
-void run();
-void mainMenu(WINDOW *menuScreen, int menuType);
-void cleanup();
-void argControls();
-void argHelp();
-void argVersion();
-/* */
-
 int main (int argc, char **argv) {
     /* Command line parsing */
     int option;
