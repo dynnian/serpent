@@ -44,7 +44,7 @@ typedef struct Snake {
 
 /* Apple structure */
 typedef struct Food {
-    int pX, pY; /* represents the apple's position on the board */
+    int pX, pY;    /* represents the apple's position on the board */
 } Apple;
 
 #endif //SERPENT_H

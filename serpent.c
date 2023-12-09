@@ -253,7 +253,6 @@ void updateSnake() {
             snake->tail->next = NULL;
             snake->head->prev->prev = NULL;
             snake->head = snake->head->prev;
-
         } else {
             /* If the head overlaps with an apple (the snake ate an apple), move the apple to a new position */
             updateApple();
@@ -479,6 +478,7 @@ int initializeGame() {
     /* Initialize the apple */
     apple = startApple();
 
+    /* Run the game */
     run();
     return 0;
 }
